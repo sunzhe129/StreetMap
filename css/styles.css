@@ -1,0 +1,95 @@
+@charset "utf-8";
+/* CSS Document */
+
+html,
+body {
+  font-family: Arial, sans-serif;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  height: 100%;
+  position: relative;
+  display: flex;
+}
+
+input {
+  font-size: 12px;
+}
+
+h1 {
+  color: #525454;
+  font-size: 22px;
+  margin-left: 30px;
+  text-align: left;
+}
+
+ul {
+  color: gray;
+  list-style-type: none;
+  padding-left: 20px;
+}
+
+ul li:hover {
+  color: yellow;
+}
+
+.options-box {
+  background: black;
+  height: 100%;
+  width: 23%;
+  line-height: 35px;
+}
+
+.filter-box {
+  width: 100%;
+}
+
+#station-location {
+  width: 75%;
+}
+
+#filter-places {
+  background: gray;
+  width: 22%;
+}
+
+.map-box {
+  height: 100%;
+  width: 77%;
+}
+
+.header-bar {
+  background: gray;
+  height: 8%;
+  width: 100%;
+}
+
+#map {
+  height: 92%;
+  width: 100%;
+}
+
+#menu {
+  background: gray;
+  margin-left: 30px;
+  border: 0;
+}
+
+#menu div {
+  width: 35px;
+  height: 5px;
+  background-color: black;
+  margin: 6px 0;
+}
+
+.text {
+  font-size: 12px;
+}
+
+#pano {
+  width: 200px;
+  height: 200px;
+}
