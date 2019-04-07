@@ -15,6 +15,7 @@ class App extends Component {
   ]
   state = {
     filteredStations: this.interestedStations,
+    selectedStationTitle: '',
     query: ''
   }
 
@@ -25,15 +26,23 @@ class App extends Component {
       let matchedStations = this.interestedStations.filter((station) => match.test(station.title))
       this.setState({
         filteredStations: matchedStations,
+        selectedStationTitle: '',
         query: query
       })
     }
     else {
       this.setState({
         filteredStations: this.interestedStations,
+        selectedStationTitle: '',
         query: ''
       })
     }
+  }
+
+  selectStation = (stationTitle) => {
+    this.setState({
+        selectedStationTitle: stationTitle,
+      })
   }
 
   render() {
@@ -44,6 +53,9 @@ class App extends Component {
           query={this.state.query}
           onFilterStations={(query) => {
             this.filterStations(query)
+          }}
+          onSelectStation={(stationTitle) => {
+            this.selectStation(stationTitle)
           }}
         />
         <div className="map-box">
@@ -56,8 +68,12 @@ class App extends Component {
           </div>
           <Map
             filteredStations={this.state.filteredStations}
+            selectedStationTitle={this.state.selectedStationTitle}
             onFilterStations={(query) => {
               this.filterStations(query)
+            }}
+            onSelectStation={(stationTitle) => {
+              this.selectStation(stationTitle)
             }}
           />
         </div>

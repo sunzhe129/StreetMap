@@ -2,11 +2,11 @@ import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 
 class Map extends Component {
-  map = undefined
-  markers = []
-
   constructor(props) {
     super(props)
+    this.map = undefined
+    this.largeInfoWindow = undefined
+    this.markers = []
     window.initMap = this.initMap
     window.populateInfoWindow = this.populateInfoWindow
   }
@@ -24,12 +24,13 @@ class Map extends Component {
   initMap = () => {
     // Constructor creates a new map - only center and zoom are required.
     this.map = new window.google.maps.Map(document.getElementById('map'), {
-      center: {lat: 31.308151, lng: 121.589481},
+      center: {lat: 31.306923, lng: 121.587774},
       zoom: 17,
       mapTypeControl: false
     })
 
-    let largeInfowindow = new window.google.maps.InfoWindow()
+    let infoWindow = new window.google.maps.InfoWindow()
+    this.largeInfoWindow = infoWindow
 
     // Style the markers a bit. This will be our listing marker icon.
     let defaultIcon = this.makeMarkerIcon('0091ff')
@@ -55,7 +56,7 @@ class Map extends Component {
       this.markers.push(marker)
       // Create an onclick event to open the large infowindow at each marker.
       marker.addListener('click', function() {
-          window.populateInfoWindow(this, largeInfowindow)
+        window.populateInfoWindow(infoWindow, this)
       })
       // Two event listeners - one for mouseover, one for mouseout,
       // to change the colors back and forth.
@@ -70,18 +71,27 @@ class Map extends Component {
     this.showAllMarkers()
   }
 
+  showInfoWindow = (stationTitle) => {
+    for (let marker of this.markers) {
+      if (marker.title === stationTitle) {
+        this.populateInfoWindow(this.largeInfoWindow, marker)
+        return;
+      }
+    }
+  }
+
   // This function populates the infowindow when the marker is clicked. We'll only allow
   // one infowindow which will open at the marker that is clicked, and populate based
   // on that markers position.
-  populateInfoWindow = (marker, infowindow) => {
+  populateInfoWindow = (infoWindow, marker) => {
     // Check to make sure the infowindow is not already opened on this marker.
-    if (infowindow.marker !== marker) {
+    if (infoWindow.marker !== marker) {
       // Clear the infowindow content to give the streetview time to load.
-      infowindow.setContent('')
-      infowindow.marker = marker
+      infoWindow.setContent('')
+      infoWindow.marker = marker
       // Make sure the marker property is cleared if the infowindow is closed.
-      infowindow.addListener('closeclick', function() {
-        infowindow.marker = null
+      infoWindow.addListener('closeclick', function() {
+        infoWindow.marker = null
       })
       let streetViewService = new window.google.maps.StreetViewService()
       let radius = 50
@@ -93,7 +103,7 @@ class Map extends Component {
           let nearStreetViewLocation = data.location.latLng
           let heading = window.google.maps.geometry.spherical.computeHeading(
             nearStreetViewLocation, marker.position)
-            infowindow.setContent('<div>' + marker.title + '</div><div id="pano"></div>')
+            infoWindow.setContent('<div>' + marker.title + '</div><div id="pano"></div>')
             let panoramaOptions = {
               position: nearStreetViewLocation,
               pov: {
@@ -104,7 +114,7 @@ class Map extends Component {
           let panorama = new window.google.maps.StreetViewPanorama(
             document.getElementById('pano'), panoramaOptions)
         } else {
-          infowindow.setContent('<div>' + marker.title + '</div>' +
+          infoWindow.setContent('<div>' + marker.title + '</div>' +
             '<div>No Street View Found</div>')
         }
       }
@@ -112,36 +122,44 @@ class Map extends Component {
       // 50 meters of the markers position
       streetViewService.getPanoramaByLocation(marker.position, radius, getStreetView)
       // Open the infowindow on the correct marker.
-      infowindow.open(this.map, marker)
+      infoWindow.open(this.map, marker)
+
+      this.props.onSelectStation(marker.title)
     }
   }
 
   showAllMarkers = () => {
     let bounds = new window.google.maps.LatLngBounds()
     // Extend the boundaries of the map for each marker and display the marker
-    for (let i = 0; i < this.markers.length; i++) {
-      this.markers[i].setMap(this.map)
-      bounds.extend(this.markers[i].position)
+    for (let marker of this.markers) {
+      marker.setMap(this.map)
+      bounds.extend(marker.position)
     }
     this.map.fitBounds(bounds)
   }
 
   // This function will loop through the listings and hide them all.
   hideAllMarkers = () => {
-    for (let i = 0; i < this.markers.length; i++) {
-      this.markers[i].setMap(null);
+    for (let marker of this.markers) {
+      marker.setMap(null)
     }
   }
 
   // This function will loop through the filtered markers array and display them all.
   showFilteredMarkers = () => {
-    this.hideAllMarkers();
-
-    for (let station of this.props.filteredStations) {
-      for (let i = 0; i < this.markers.length; i++) {
-        if (station.title === this.markers[i].title) {
-          this.markers[i].setMap(this.map)
+    for (let marker of this.markers) {
+      let found = false
+      for (let station of this.props.filteredStations) {
+        if (station.title === marker.title) {
+          found = true
         }
+      }
+
+      if (found) {
+        marker.setMap(this.map)
+      }
+      else {
+        marker.setMap(null)
       }
     }
   }
@@ -162,6 +180,7 @@ class Map extends Component {
 
   render() {
     this.showFilteredMarkers()
+    this.showInfoWindow(this.props.selectedStationTitle)
 
     return (
       <div id="map"></div>

@@ -22,7 +22,7 @@ class ListStations extends Component {
         <div>
           <ul id="location-list">
             {this.props.filteredStations && this.props.filteredStations.map((station) => (
-              <li key={station.title}>{station.title}</li>
+              <li key={station.title} onClick={() => this.props.onSelectStation(station.title)}>{station.title}</li>
             ))}
           </ul>
         </div>
