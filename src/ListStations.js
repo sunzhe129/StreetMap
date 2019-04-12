@@ -13,11 +13,10 @@ class ListStations extends Component {
     }
 
     return (
-      <div className="list-stations">
+      <div id="list-stations">
         <h1>Jindiwei District</h1>
         <div className="filter-box">
           <input id="station-location" type="text" placeholder="Station location" onChange={(event) => this.props.onFilterStations(event.target.value)}/>
-          <input id="filter-location" type="button" value="Filter"/>
         </div>
         <div>
           <ul id="location-list">

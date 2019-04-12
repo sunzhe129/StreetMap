@@ -45,6 +45,16 @@ class App extends Component {
       })
   }
 
+  toggleStationList = () => {
+    let listStationElement = document.getElementById("list-stations")
+    if (listStationElement.style.display !== 'none') {
+      listStationElement.style.display = 'none'
+    }
+    else {
+      listStationElement.style.display = 'block'
+    }
+  }
+
   render() {
     return (
       <div className="container">
@@ -60,11 +70,12 @@ class App extends Component {
         />
         <div className="map-box">
           <div className="header-bar">
-            <button type="button" id="menu" aria-label="Menu">
+            <button type="button" id="menu" aria-label="Menu" onClick={() => this.toggleStationList()}>
               <div></div>
               <div></div>
               <div></div>
             </button>
+            <div id="statement">The map data is from Google and Foursquare.</div>
           </div>
           <Map
             filteredStations={this.state.filteredStations}

@@ -6,9 +6,9 @@ class Map extends Component {
     super(props)
     this.map = undefined
     this.largeInfoWindow = undefined
-    this.markers = []
+    this.markerAndAddressInfo = []
     window.initMap = this.initMap
-    window.populateInfoWindow = this.populateInfoWindow
+    window.showMarkerAnimationAndInfoWindow = this.showMarkerAnimationAndInfoWindow
   }
 
   componentDidMount() {
@@ -53,10 +53,13 @@ class Map extends Component {
         id: i
       })
       // Push the marker to our array of markers.
-      this.markers.push(marker)
+      this.markerAndAddressInfo.push({
+        marker : marker,
+        address : undefined
+      })
       // Create an onclick event to open the large infowindow at each marker.
       marker.addListener('click', function() {
-        window.populateInfoWindow(infoWindow, this)
+        window.showMarkerAnimationAndInfoWindow(infoWindow, this)
       })
       // Two event listeners - one for mouseover, one for mouseout,
       // to change the colors back and forth.
@@ -72,9 +75,9 @@ class Map extends Component {
   }
 
   showInfoWindow = (stationTitle) => {
-    for (let marker of this.markers) {
-      if (marker.title === stationTitle) {
-        this.populateInfoWindow(this.largeInfoWindow, marker)
+    for (let markerAndAddress of this.markerAndAddressInfo) {
+      if (markerAndAddress.marker.title === stationTitle) {
+        this.showMarkerAnimationAndInfoWindow(this.largeInfoWindow, markerAndAddress.marker)
         return;
       }
     }
@@ -83,83 +86,111 @@ class Map extends Component {
   // This function populates the infowindow when the marker is clicked. We'll only allow
   // one infowindow which will open at the marker that is clicked, and populate based
   // on that markers position.
-  populateInfoWindow = (infoWindow, marker) => {
+  showMarkerAnimationAndInfoWindow = (infoWindow, marker) => {
     // Check to make sure the infowindow is not already opened on this marker.
     if (infoWindow.marker !== marker) {
       // Clear the infowindow content to give the streetview time to load.
+      if (infoWindow.marker && infoWindow.marker.getAnimation() !== null) {
+        infoWindow.marker.setAnimation(null)
+      }
       infoWindow.setContent('')
+
       infoWindow.marker = marker
+      infoWindow.marker.setAnimation(window.google.maps.Animation.BOUNCE)
       // Make sure the marker property is cleared if the infowindow is closed.
       infoWindow.addListener('closeclick', function() {
         infoWindow.marker = null
       })
-      let streetViewService = new window.google.maps.StreetViewService()
-      let radius = 50
-      // In case the status is OK, which means the pano was found, compute the
-      // position of the streetview image, then calculate the heading, then get a
-      // panorama from that and set the options
-      function getStreetView(data, status) {
-        if (status === window.google.maps.StreetViewStatus.OK) {
-          let nearStreetViewLocation = data.location.latLng
-          let heading = window.google.maps.geometry.spherical.computeHeading(
-            nearStreetViewLocation, marker.position)
-            infoWindow.setContent('<div>' + marker.title + '</div><div id="pano"></div>')
-            let panoramaOptions = {
-              position: nearStreetViewLocation,
-              pov: {
-                heading: heading,
-                pitch: 30
-              }
-            }
-          let panorama = new window.google.maps.StreetViewPanorama(
-            document.getElementById('pano'), panoramaOptions)
-        } else {
-          infoWindow.setContent('<div>' + marker.title + '</div>' +
-            '<div>No Street View Found</div>')
-        }
-      }
-      // Use streetview service to get the closest streetview image within
-      // 50 meters of the markers position
-      streetViewService.getPanoramaByLocation(marker.position, radius, getStreetView)
-      // Open the infowindow on the correct marker.
-      infoWindow.open(this.map, marker)
 
-      this.props.onSelectStation(marker.title)
+      let cachedAddress = this.getCachedAddress(marker)
+      if (cachedAddress) {
+        this.openInfoWindow(infoWindow, cachedAddress)
+      }
+      else {
+        let url = 'https://api.foursquare.com/v2/venues/search?client_id=WHAPC3YKHLCZXP4ICDPTFTGJWTEGBBD4DZJ3J4UBTMO0I5DG&client_secret=CP0PE1PDGJZUNQYSNS54CFS2ODMQNP5HOLWTSZK2ZAMKG4VW&v=20180323&ll=' +
+          marker.position.lat() + ',' + marker.position.lng() + '&limit=1'
+        fetch(url).then(response => {
+          if (response.status === 200) {
+            response.json().then(data => {
+              let addressContent
+              let venue = data.response.venues[0]
+              if (venue.location && venue.location.address) {
+                addressContent = venue.location.address
+                if (venue.location.crossStreet) {
+                  addressContent += ', ' + venue.location.crossStreet
+                }
+                this.saveFetchedAddress(marker, addressContent)
+              }
+              else {
+                addressContent = 'Failed to get address from the location.'
+              }
+
+              this.openInfoWindow(infoWindow, addressContent)
+            })
+          }
+          else {
+            this.openInfoWindow(infoWindow, 'Failed to load content from the location.')
+          }
+        })
+        .catch(e => {
+          console.log(e)
+          this.openInfoWindow(infoWindow, 'Failed to fetch data from the Foursquare.')
+        })
+      }
     }
+  }
+
+  getCachedAddress = (marker) => {
+    for (let markerAndAddress of this.markerAndAddressInfo) {
+      if (markerAndAddress.marker === marker) {
+        return markerAndAddress.address
+      }
+    }
+
+    return undefined
+  }
+
+  saveFetchedAddress = (marker, address) => {
+    for (let markerAndAddress of this.markerAndAddressInfo) {
+      if (markerAndAddress.marker === marker) {
+        markerAndAddress.address = address
+      }
+    }
+  }
+
+  openInfoWindow = (infoWindow, address) => {
+    infoWindow.setContent('<div>' + infoWindow.marker.title +'</div><br><div>' + address + '</div>')
+    // Open the infowindow on the correct marker.
+    infoWindow.open(this.map, infoWindow.marker)
+
+    this.props.onSelectStation(infoWindow.marker.title)
   }
 
   showAllMarkers = () => {
     let bounds = new window.google.maps.LatLngBounds()
     // Extend the boundaries of the map for each marker and display the marker
-    for (let marker of this.markers) {
-      marker.setMap(this.map)
-      bounds.extend(marker.position)
+    for (let markerAndAddress of this.markerAndAddressInfo) {
+      markerAndAddress.marker.setMap(this.map)
+      bounds.extend(markerAndAddress.marker.position)
     }
     this.map.fitBounds(bounds)
   }
 
-  // This function will loop through the listings and hide them all.
-  hideAllMarkers = () => {
-    for (let marker of this.markers) {
-      marker.setMap(null)
-    }
-  }
-
   // This function will loop through the filtered markers array and display them all.
   showFilteredMarkers = () => {
-    for (let marker of this.markers) {
+    for (let markerAndAddress of this.markerAndAddressInfo) {
       let found = false
       for (let station of this.props.filteredStations) {
-        if (station.title === marker.title) {
+        if (station.title === markerAndAddress.marker.title) {
           found = true
         }
       }
 
       if (found) {
-        marker.setMap(this.map)
+        markerAndAddress.marker.setMap(this.map)
       }
       else {
-        marker.setMap(null)
+        markerAndAddress.marker.setMap(null)
       }
     }
   }
