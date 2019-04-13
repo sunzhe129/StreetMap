@@ -70,12 +70,12 @@ class App extends Component {
         />
         <div className="map-box">
           <div className="header-bar">
-            <button type="button" id="menu" aria-label="Menu" onClick={() => this.toggleStationList()}>
+            <button type="button" id="menu" aria-label="menu" onClick={() => this.toggleStationList()}>
               <div></div>
               <div></div>
               <div></div>
             </button>
-            <div id="statement">The map data is from Google and Foursquare.</div>
+            <div id="statement" tabIndex="0">The map data is from Google and Foursquare.</div>
           </div>
           <Map
             filteredStations={this.state.filteredStations}

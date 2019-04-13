@@ -2,10 +2,17 @@ import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 
 class Map extends Component {
+  static propTypes = {
+    filteredStations: PropTypes.array.isRequired,
+    selectedStationTitle: PropTypes.string.isRequired,
+    onFilterStations: PropTypes.func.isRequired,
+    onSelectStation: PropTypes.func.isRequired,
+  }
+
   constructor(props) {
     super(props)
     this.map = undefined
-    this.largeInfoWindow = undefined
+    this.addressInfoWindow = undefined
     this.markerAndAddressInfo = []
     window.initMap = this.initMap
     window.showMarkerAnimationAndInfoWindow = this.showMarkerAnimationAndInfoWindow
@@ -13,7 +20,7 @@ class Map extends Component {
 
   componentDidMount() {
     this.props.onFilterStations('')
-
+    // Load google map asynchronously
     const script = document.createElement("script")
     script.src = "https://maps.googleapis.com/maps/api/js?libraries=places&key=AIzaSyAeKGPiBJwS5PAVGQOwZD4mvrOqkVehGZ0&v=3&callback=initMap"
     script.async = true
@@ -30,7 +37,7 @@ class Map extends Component {
     })
 
     let infoWindow = new window.google.maps.InfoWindow()
-    this.largeInfoWindow = infoWindow
+    this.addressInfoWindow = infoWindow
 
     // Style the markers a bit. This will be our listing marker icon.
     let defaultIcon = this.makeMarkerIcon('0091ff')
@@ -52,12 +59,14 @@ class Map extends Component {
         icon: defaultIcon,
         id: i
       })
-      // Push the marker to our array of markers.
+      // Push the marker and address info to our array, the address property defaults to undefined for now,
+      // it will be used to cache the address info fetched from Foursquare, to avoid to fetch it every time
+      // when we display the info window.
       this.markerAndAddressInfo.push({
         marker : marker,
         address : undefined
       })
-      // Create an onclick event to open the large infowindow at each marker.
+      // Create an onclick event to open the address infowindow at each marker.
       marker.addListener('click', function() {
         window.showMarkerAnimationAndInfoWindow(infoWindow, this)
       })
@@ -77,15 +86,15 @@ class Map extends Component {
   showInfoWindow = (stationTitle) => {
     for (let markerAndAddress of this.markerAndAddressInfo) {
       if (markerAndAddress.marker.title === stationTitle) {
-        this.showMarkerAnimationAndInfoWindow(this.largeInfoWindow, markerAndAddress.marker)
+        this.showMarkerAnimationAndInfoWindow(this.addressInfoWindow, markerAndAddress.marker)
         return;
       }
     }
   }
 
-  // This function populates the infowindow when the marker is clicked. We'll only allow
-  // one infowindow which will open at the marker that is clicked, and populate based
-  // on that markers position.
+  // This function shows the selected marker with animation, and populates the address infowindow
+  // when the marker is clicked or the station is selected from the station list. We'll only allow
+  // one marker to be in animation and one infowindow to be displayed at a time.
   showMarkerAnimationAndInfoWindow = (infoWindow, marker) => {
     // Check to make sure the infowindow is not already opened on this marker.
     if (infoWindow.marker !== marker) {
@@ -107,6 +116,7 @@ class Map extends Component {
         this.openInfoWindow(infoWindow, cachedAddress)
       }
       else {
+        //NOTE: The additional address info displayed on the infowindow is from FOURSQUARE.
         let url = 'https://api.foursquare.com/v2/venues/search?client_id=WHAPC3YKHLCZXP4ICDPTFTGJWTEGBBD4DZJ3J4UBTMO0I5DG&client_secret=CP0PE1PDGJZUNQYSNS54CFS2ODMQNP5HOLWTSZK2ZAMKG4VW&v=20180323&ll=' +
           marker.position.lat() + ',' + marker.position.lng() + '&limit=1'
         fetch(url).then(response => {
@@ -119,7 +129,7 @@ class Map extends Component {
                 if (venue.location.crossStreet) {
                   addressContent += ', ' + venue.location.crossStreet
                 }
-                this.saveFetchedAddress(marker, addressContent)
+                this.cacheFetchedAddress(marker, addressContent)
               }
               else {
                 addressContent = 'Failed to get address from the location.'
@@ -150,7 +160,7 @@ class Map extends Component {
     return undefined
   }
 
-  saveFetchedAddress = (marker, address) => {
+  cacheFetchedAddress = (marker, address) => {
     for (let markerAndAddress of this.markerAndAddressInfo) {
       if (markerAndAddress.marker === marker) {
         markerAndAddress.address = address
@@ -176,7 +186,7 @@ class Map extends Component {
     this.map.fitBounds(bounds)
   }
 
-  // This function will loop through the filtered markers array and display them all.
+  // This function will loop through the markers array and the filtered stations to only display the matched markers.
   showFilteredMarkers = () => {
     for (let markerAndAddress of this.markerAndAddressInfo) {
       let found = false
@@ -214,7 +224,7 @@ class Map extends Component {
     this.showInfoWindow(this.props.selectedStationTitle)
 
     return (
-      <div id="map"></div>
+      <div id="map" aria-label="map"></div>
     )
   }
 }
